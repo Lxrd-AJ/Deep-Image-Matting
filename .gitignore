@@ -1,3 +1,13 @@
+Dataset/Background/COCO_Images
+Dataset/Test_set/Adobe-licensed images
+Dataset/Training_set/Adobe-licensed images
+Dataset/Training_set/Other
+Dataset/Training_set/CombinedForeground
+Dataset/Training_set/CombinedAlpha
+Dataset/__pycache__
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
