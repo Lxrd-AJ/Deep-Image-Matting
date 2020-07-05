@@ -10,7 +10,7 @@ trainingDataset = MattingDataset(_TRAIN_FOREGROUND_DIR_, _TRAIN_BACKGROUND_DIR_,
 
 if __name__ == "__main__":
 
-    compositeImage, trimap = trainingDataset[8978]
+    compositeImage, trimap = trainingDataset[3201]
 
     compositeImage.show()
     trimap.show()

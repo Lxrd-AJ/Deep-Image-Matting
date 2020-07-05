@@ -4,6 +4,7 @@ import torch.utils.data as data
 import itertools
 import numpy as np
 import math
+import random
 from PIL import Image, ImageFilter, ImageChops
 
 class MattingDataset(data.Dataset):
@@ -72,12 +73,18 @@ class MattingDataset(data.Dataset):
         segmentedAlpha[segmentedAlpha > 0] = 255
         segmentedAlpha = Image.fromarray(segmentedAlpha)
 
-        dilatedMask = segmentedAlpha.filter(ImageFilter.MaxFilter(15))
+        # NB: Dilation & Erosion seem to be time consuming operations
+        dilationValues = [7,9,11] #,13,15
+        erosionValues = [3,5,7] #,9,11
+        dv = random.choice(dilationValues)
+        ev = random.choice(erosionValues)
+        erodedAlpha = segmentedAlpha.filter(ImageFilter.MinFilter(ev))
+        dilatedMask = segmentedAlpha.filter(ImageFilter.MaxFilter(dv))
         # middle step: threshold the dilatedMask to 127
         dilatedMask = np.array(dilatedMask)
         dilatedMask[dilatedMask > 127] = 127
         dilatedMask = Image.fromarray(dilatedMask)
-        trimap = ImageChops.add(dilatedMask, segmentedAlpha)
+        trimap = ImageChops.add(dilatedMask, erodedAlpha)
 
         return trimap
 
