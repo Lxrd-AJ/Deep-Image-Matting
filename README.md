@@ -8,6 +8,7 @@ Predicting an alpha matte from an image and a trimap.
 # Network structure
 - [ ] Define Encoder-Decoder net
     - [ ] To support pretrained vgg or not?
+    - I'd be using a different encoder - decoder architecture to the paper
 - [ ] Define refinement net
 
 # Inference on Real World images

@@ -42,8 +42,10 @@ class MattingDataset(data.Dataset):
         trimap = self.create_trimap(alphaMask)
 
         compositeImage = self.composite_image(foregroundImage, backgroundImage, alphaMask)
+
+        assert compositeImage.size == trimap.size, f"composite size = {compositeImage.size} and trimap = {trimap.size} and foreground size = {foregroundImage.size}"
         
-        return (compositeImage,trimap)
+        return (compositeImage,trimap, alphaMask)
     
     def open_image(self, path):
         img = Image.open(path)
@@ -85,12 +87,20 @@ class MattingDataset(data.Dataset):
         dilatedMask[dilatedMask > 127] = 127
         dilatedMask = Image.fromarray(dilatedMask)
         trimap = ImageChops.add(dilatedMask, erodedAlpha)
+        trimap = trimap.convert("L")
 
         return trimap
 
     def composite_image(self, foreground, background, alpha):
         bbox = foreground.getbbox()
+        fw, fh = foreground.size
         background = background.crop(bbox)
+        print(f"Background cropped image size {background.size}")
+        # background = background.crop((0,0,fw,fh))
         alpha = alpha.convert("1")
         background = ImageChops.composite(foreground, background,alpha)
+        print(f"Composited background size = {background.size}")
+
+        assert background.size == foreground.size, f"Foreground bbox = {bbox}, foreground size = {foreground.size}" #TODO: Remove
+
         return background
