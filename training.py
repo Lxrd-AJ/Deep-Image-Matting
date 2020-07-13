@@ -4,7 +4,7 @@ import random
 from PIL import Image
 from Dataset.MattingDataset import MattingDataset
 from model import EncoderDecoderNet, RefinementNet
-from dataset_transforms import RandomCrop
+from dataset_transforms import RandomTrimapCrop
 
 
 _TRAIN_FOREGROUND_DIR_ = "./Dataset/Training_set/CombinedForeground"
@@ -12,7 +12,7 @@ _TRAIN_BACKGROUND_DIR_ = "./Dataset/Background/COCO_Images"
 _TRAIN_ALPHA_DIR_ = "./Dataset/Training_set/CombinedAlpha"
 
 tripleTransforms = transforms.Compose([
-    RandomCrop([(320, 320), (480, 480), (640, 640)])
+    RandomTrimapCrop([(320, 320), (480, 480), (640, 640)], probability=0.9)
 ])
 
 trainingDataset = MattingDataset(_TRAIN_FOREGROUND_DIR_, _TRAIN_BACKGROUND_DIR_, _TRAIN_ALPHA_DIR_, allTransform=tripleTransforms)
@@ -48,6 +48,7 @@ def transform_input(data):
 if __name__ == "__main__":
 
     idx = random.randint(0, len(trainingDataset))
+    print(f"using image index = {idx}")
     compositeImage, trimap, alphaMask = trainingDataset[idx]
 
     # alphaMask.show()
