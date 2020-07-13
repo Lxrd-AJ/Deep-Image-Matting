@@ -8,7 +8,7 @@ import random
 from PIL import Image, ImageFilter, ImageChops
 
 class MattingDataset(data.Dataset):
-    def __init__(self, fgDir, bgDir, alphaDir):
+    def __init__(self, fgDir, bgDir, alphaDir, allTransform):
         self.fgDir = fgDir
         self.bgDir = bgDir
         self.alphaDir = alphaDir
@@ -25,6 +25,8 @@ class MattingDataset(data.Dataset):
         
         self.imageBackgroundPair = itertools.product(self.alphaImageNames, self.backgroundImageNames)
         self.imageBackgroundPair = sorted(self.imageBackgroundPair, key=lambda x: x[0])
+
+        self.allTransform = allTransform
 
         assert len(self.imageBackgroundPair) == len(self)
 
@@ -45,6 +47,8 @@ class MattingDataset(data.Dataset):
 
         assert compositeImage.size == trimap.size, f"composite size = {compositeImage.size} and trimap = {trimap.size} and foreground size = {foregroundImage.size}"
         
+        if self.allTransform:
+            compositeImage, trimap, alphaMask = self.allTransform((compositeImage, trimap, alphaMask))
         return (compositeImage,trimap, alphaMask)
     
     def open_image(self, path):
@@ -92,11 +96,12 @@ class MattingDataset(data.Dataset):
         return trimap
 
     def composite_image(self, foreground, background, alpha):
+        print(f"Background size = {background.size}")
         bbox = foreground.getbbox()
         fw, fh = foreground.size
-        background = background.crop(bbox)
+        # background = background.crop(bbox)
+        background = background.crop((0,0,fw,fh))
         print(f"Background cropped image size {background.size}")
-        # background = background.crop((0,0,fw,fh))
         alpha = alpha.convert("1")
         background = ImageChops.composite(foreground, background,alpha)
         print(f"Composited background size = {background.size}")

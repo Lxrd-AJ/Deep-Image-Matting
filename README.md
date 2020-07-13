@@ -6,10 +6,9 @@ Predicting an alpha matte from an image and a trimap.
 - [x] Download 100 COCO backgrounds. I'd be using COCO backgrounds as they're easier to fetch.
 
 # Network structure
-- [ ] Define Encoder-Decoder net
-    - [ ] To support pretrained vgg or not?
-    - I'd be using a different encoder - decoder architecture to the paper
-- [ ] Define refinement net
+- I'd be using a different encoder - decoder architecture to the paper
+- I wont be using a pretrained vgg net
+- Used this resource to determine the output size of the network http://makeyourownneuralnetwork.blogspot.com/2020/02/calculating-output-size-of-convolutions.html and https://pytorch.org/docs/stable/nn.html#convtranspose2d
 
 # Inference on Real World images
 - [ ] Try using a segmentation algorithm and random dilation to build a trimap

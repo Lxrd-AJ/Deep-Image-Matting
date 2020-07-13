@@ -4,15 +4,21 @@ import random
 from PIL import Image
 from Dataset.MattingDataset import MattingDataset
 from model import EncoderDecoderNet, RefinementNet
+from dataset_transforms import RandomCrop
 
 
 _TRAIN_FOREGROUND_DIR_ = "./Dataset/Training_set/CombinedForeground"
 _TRAIN_BACKGROUND_DIR_ = "./Dataset/Background/COCO_Images"
 _TRAIN_ALPHA_DIR_ = "./Dataset/Training_set/CombinedAlpha"
 
-trainingDataset = MattingDataset(_TRAIN_FOREGROUND_DIR_, _TRAIN_BACKGROUND_DIR_, _TRAIN_ALPHA_DIR_)
+tripleTransforms = transforms.Compose([
+    RandomCrop([(320, 320), (480, 480), (640, 640)])
+])
+
+trainingDataset = MattingDataset(_TRAIN_FOREGROUND_DIR_, _TRAIN_BACKGROUND_DIR_, _TRAIN_ALPHA_DIR_, allTransform=tripleTransforms)
 
 model = EncoderDecoderNet()
+refinementModel = RefinementNet(inputChannels=5)
 
 def batch_collate_fn(batch):
     """
@@ -50,6 +56,17 @@ if __name__ == "__main__":
 
     x = transform_input((compositeImage, trimap))
     print(f"Composite Input size = {x.size()}")
+    
     predictedMask = model(x)
 
-    
+    print(predictedMask)
+    print(f"Prediction size = {predictedMask.size()}")
+
+    finalMask = refinementModel(x, predictedMask)
+    print(finalMask)
+    print(f"Final mask size = {finalMask.size()}")
+
+    predictedMask = transforms.ToPILImage()(finalMask[0] * 255)
+    # predictedMask.show()
+
+
