@@ -1,6 +1,7 @@
 import torch
 import torchvision.transforms as transforms
 import random
+import numpy as np
 from PIL import Image
 from Dataset.MattingDataset import MattingDataset
 from model import EncoderDecoderNet, RefinementNet
@@ -10,6 +11,7 @@ from dataset_transforms import RandomTrimapCrop
 _TRAIN_FOREGROUND_DIR_ = "./Dataset/Training_set/CombinedForeground"
 _TRAIN_BACKGROUND_DIR_ = "./Dataset/Background/COCO_Images"
 _TRAIN_ALPHA_DIR_ = "./Dataset/Training_set/CombinedAlpha"
+_NETWORK_INPUT_ = (320,320)
 
 tripleTransforms = transforms.Compose([
     RandomTrimapCrop([(320, 320), (480, 480), (640, 640)], probability=0.9)
@@ -39,7 +41,9 @@ def transform_input(data):
     tensorTf = transforms.ToTensor()
 
     composite = tensorTf(compositeImage)
-    trimap = tensorTf(trimap)
+    trimap = np.array(trimap)
+    trimap = torch.from_numpy(trimap).float() / 255.0
+    trimap = trimap.unsqueeze(0)
 
     inputTensor = torch.cat([composite,trimap], 0)
     return inputTensor.unsqueeze(0)

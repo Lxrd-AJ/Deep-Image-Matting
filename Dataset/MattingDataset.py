@@ -102,10 +102,20 @@ class MattingDataset(data.Dataset):
         # background = background.crop(bbox)
         background = background.crop((0,0,fw,fh))
         print(f"Background cropped image size {background.size}")
-        alpha = alpha.convert("1")
-        background = ImageChops.composite(foreground, background,alpha)
+        # alpha = alpha.convert("1")
+        alpha = alpha.convert("L")
+        
+        foreground, background, alpha = np.array(foreground), np.array(background), np.array(alpha)
+        alphaArr = np.zeros((fh,fw,1), np.float32)
+        alphaArr[:,:,0] = alpha / 255
+        alpha = alphaArr
+        background = alpha * foreground + (1 - alpha) * background
+        background = Image.fromarray(background.astype(np.uint8))
+        background.show()
+        # background = ImageChops.composite(foreground, background,alpha) #TODO: Remove
+        
         print(f"Composited background size = {background.size}")
 
-        assert background.size == foreground.size, f"Foreground bbox = {bbox}, foreground size = {foreground.size}" #TODO: Remove
+        # assert background.size == foreground.size, f"Foreground bbox = {bbox}, foreground size = {foreground.size}" #TODO: Remove
 
         return background
