@@ -1,24 +1,55 @@
 import numpy as np
 import random
+import torch
+import torchvision.transforms.functional as TF
 from PIL import Image
 
+
+class ToTensor(object):
+    def __call__(self, items):
+        image, trimap, mask = items
+
+        image = TF.to_tensor(image)
+
+        trimap = np.array(trimap)
+        trimap = torch.from_numpy(trimap).float() / 255.0
+        
+        mask = np.array(mask)
+        mask = torch.from_numpy(mask).float() / 255
+
+        return (image,  trimap, mask)
+
+
+
+class Resize(object):
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, items):
+        return tuple(self.resize(x) for x in items)
+
+    def resize(self, x):
+        return x.resize(self.size, Image.BICUBIC)
+
+
+
 class RandomTrimapCrop(object):
+    """
+    Crops the input image, trimap and alpha mask into a size chosen randomly from `sizeRange`
+    The center (x,y) of the returned results is chosen from a random location in the unknown regions of the trimap
+    """
     def __init__(self, sizeRange, probability=0.5):
         self.sizeRange = sizeRange
         self.p = probability
 
     """
-    Given a list of images in items
+    
     """
     def __call__(self, items):
         image, trimap, mask = items
-        image.show()
-        trimap.show()
-        mask.show()
 
         if random.random() < self.p:
             cropWidth, cropHeight = random.choice(self.sizeRange)
-            print(f"Chosen Crop Size = {(cropWidth, cropHeight)}")
 
             trimapArray = np.array(trimap)
             unknownIndices = np.where(trimapArray == 127)
@@ -26,24 +57,14 @@ class RandomTrimapCrop(object):
             
             if len(unknownIndices) > 0:
                 y,x = random.choice(unknownIndices)
-                print(f"Chosen center = {x},{y}")
-                print(trimapArray[y,x])
 
                 topLeftx = max(0, x - int(cropWidth/2))
                 topLefty = max(0, y - int(cropHeight/2))
 
-                print(f"Top Left x,y = {topLeftx}, {topLefty}")
-
-                #Crop image
                 image = self.crop(image, (topLeftx, topLefty), (cropWidth,cropHeight))
-                image.show()
-
-                #Trimap Crop
                 trimap = self.crop(trimap, (topLeftx, topLefty), (cropWidth,cropHeight))
-                trimap.show()
                 mask = self.crop(mask, (topLeftx, topLefty), (cropWidth,cropHeight))
-                mask.show()
-            #
+                
 
         return image, trimap, mask
 

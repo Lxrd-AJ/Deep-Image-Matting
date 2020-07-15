@@ -35,7 +35,7 @@ class MattingDataset(data.Dataset):
 
     def __getitem__(self, idx):
         alphaMaskName, backgroundName = self.imageBackgroundPair[idx]
-        alphaMask = self.open_image(os.path.join(self.alphaDir, alphaMaskName))
+        alphaMask = self.open_image(os.path.join(self.alphaDir, alphaMaskName)).convert("L")
         foregroundImage = self.open_image(os.path.join(self.fgDir, alphaMaskName))
         backgroundImage = self.open_image(os.path.join(self.bgDir, backgroundName))
 
@@ -96,14 +96,9 @@ class MattingDataset(data.Dataset):
         return trimap
 
     def composite_image(self, foreground, background, alpha):
-        print(f"Background size = {background.size}")
         bbox = foreground.getbbox()
         fw, fh = foreground.size
-        # background = background.crop(bbox)
         background = background.crop((0,0,fw,fh))
-        print(f"Background cropped image size {background.size}")
-        # alpha = alpha.convert("1")
-        alpha = alpha.convert("L")
         
         foreground, background, alpha = np.array(foreground), np.array(background), np.array(alpha)
         alphaArr = np.zeros((fh,fw,1), np.float32)
@@ -111,11 +106,5 @@ class MattingDataset(data.Dataset):
         alpha = alphaArr
         background = alpha * foreground + (1 - alpha) * background
         background = Image.fromarray(background.astype(np.uint8))
-        background.show()
-        # background = ImageChops.composite(foreground, background,alpha) #TODO: Remove
-        
-        print(f"Composited background size = {background.size}")
-
-        # assert background.size == foreground.size, f"Foreground bbox = {bbox}, foreground size = {foreground.size}" #TODO: Remove
 
         return background
