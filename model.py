@@ -2,23 +2,6 @@ import torch
 import torch.nn as nn
 
 
-class EncoderDecoderNet(nn.Module):
-    def __init__(self):
-        super(EncoderDecoderNet, self).__init__()
-
-        self.encoder = Encoder()
-        self.decoder = Decoder()
-
-    def forward(self, x):
-        """
-        Input to the network is an image patch and the corresponding trimap arranged in the channels of `x`
-        """
-        x = self.encoder(x)
-        x = self.decoder(x)
-
-        return x
-
-
 class RefinementNet(nn.Module):
     def __init__(self, inputChannels):
         super(RefinementNet, self).__init__()
@@ -40,6 +23,23 @@ class RefinementNet(nn.Module):
         x = self.sigmoid(x)
         return x
 
+
+
+class EncoderDecoderNet(nn.Module):
+    def __init__(self):
+        super(EncoderDecoderNet, self).__init__()
+
+        self.encoder = Encoder()
+        self.decoder = Decoder()
+
+    def forward(self, x):
+        """
+        Input to the network is an image patch and the corresponding trimap arranged in the channels of `x`
+        """
+        x = self.encoder(x)
+        x = self.decoder(x)
+
+        return x
 
 
 class Encoder(nn.Module):

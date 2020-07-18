@@ -4,13 +4,19 @@ import random
 import numpy as np
 import multiprocessing
 import time
+import matplotlib.pyplot as plt
 from PIL import Image
 from Dataset.MattingDataset import MattingDataset
 from model import EncoderDecoderNet, RefinementNet
 from dataset_transforms import RandomTrimapCrop, Resize, ToTensor
-from loss import alpha_prediction_loss
+from loss import alpha_prediction_loss, compositional_loss
 
 
+
+
+def clip_gradients(models):
+    for m in models:
+        torch.nn.utils.clip_grad_norm_(m.parameters(), _GRADIENT_CLIP_)
 
 
 def batch_collate_fn(batch):
@@ -39,12 +45,14 @@ _TRAIN_BACKGROUND_DIR_ = "./Dataset/Background/COCO_Images"
 _TRAIN_ALPHA_DIR_ = "./Dataset/Training_set/CombinedAlpha"
 _NETWORK_INPUT_ = (320,320)
 _COMPUTE_DEVICE_ = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-_NUM_EPOCHS_ = 50
-_BATCH_SIZE_ = 4
+_NUM_EPOCHS_ = 30 #200 #TODO: Remove
+_BATCH_SIZE_ = 8 #TODO: Increase this if using a GPU
 _NUM_WORKERS_ = multiprocessing.cpu_count()
+_LOSS_WEIGHT_ = 0.4 #0.5
+_GRADIENT_CLIP_ = 2.5
 
 tripleTransforms = transforms.Compose([
-    RandomTrimapCrop([(320, 320), (480, 480), (640, 640)], probability=0.8),
+    RandomTrimapCrop([(320, 320), (480, 480), (640, 640)], probability=0.7),
     Resize(_NETWORK_INPUT_),
     ToTensor()
 ])
@@ -62,32 +70,6 @@ refinementModel = RefinementNet(inputChannels=5)
 
 
 if __name__ == "__main__":
-
-    # idx = random.randint(0, len(trainingDataset))
-    # print(f"using image index = {idx}")
-    # compositeImage, trimap, alphaMask = trainingDataset[idx]
-
-    # compositeImage.show()
-    # trimap.show()
-    # alphaMask.show()
-    
-    # print(f"Dataset length = {len(trainingDataset)}")
-
-    # x = transform_input((compositeImage, trimap))
-    # print(f"Composite Input size = {x.size()}")
-    
-    # predictedMask = model(x)
-
-    # print(predictedMask)
-    # print(f"Prediction size = {predictedMask.size()}")
-
-    # finalMask = refinementModel(x, predictedMask)
-    # print(finalMask)
-    # print(f"Final mask size = {finalMask.size()}")
-
-    # predictedMask = transforms.ToPILImage()(finalMask[0] * 255)
-    # predictedMask.show()
-
 
     optimiser = torch.optim.SGD([
                     {'params': model.parameters(), 'lr': 1e-2},
@@ -116,14 +98,71 @@ if __name__ == "__main__":
                 compositeImages, groundTruthMasks = data
                 
                 predictedMasks = model(compositeImages)
-
                 refinedMasks = refinementModel(compositeImages,  predictedMasks)
 
-                print(f"Final Prediction size = {refinedMasks.size()}")
-
-                #TODO: Sum up the losses from the model & refinementModel
                 predictedMasks = predictedMasks.squeeze(1)
-                print(f"Reshaped predicted masks = {predictedMasks.size()}")
-                modelLoss = alpha_prediction_loss(predictedMasks, groundTruthMasks)
-                exit(0)
+                refinedMasks = refinedMasks.squeeze(1)
+                
+                modelAlphaLoss = alpha_prediction_loss(predictedMasks, groundTruthMasks)                
+                refinedAlphaLoss = alpha_prediction_loss(refinedMasks, groundTruthMasks)
+                lossAlpha = modelAlphaLoss + refinedAlphaLoss
+                lossComposition = compositional_loss(predictedMasks, groundTruthMasks, compositeImages)
+                totalLoss = _LOSS_WEIGHT_ * lossAlpha + (1 - _LOSS_WEIGHT_) * lossComposition
+                epochLoss += totalLoss.item()
+
+                if idx % 100 == 0:
+                    print(f"\tIteration {idx+1}/{len(trainingDataset)}")
+                    print("-----" * 15)
+                    print(f"\t Encoder-Decoder alpha loss = {modelAlphaLoss}")
+                    print(f"\t Refinement model alpha loss = {refinedAlphaLoss}")
+                    print(f"\t Alpha loss = {lossAlpha}")
+                    print(f"\t Composition loss = {lossComposition}")
+                    print(f"\t Total Loss = {totalLoss}")
+                    print()
+
+                optimiser.zero_grad()
+                totalLoss.backward()
+
+                #NB: `lossAlpha` can be high at first e.g 107,001. This can cause high gradient updates and can
+                #   make training unstable. The gradients might need to be clipped to help training.
+                #   The model still trains nicely without clipping, this just gives you that smooth loss function
+                clip_gradients([model, refinementModel])
+
+                optimiser.step()
+
+
+        epochLoss = epochLoss / len(trainDataloader)
+        epochElapsed = time.time() - epochStart
+        print(f"\t Average Train Epoch loss is {epochLoss:.2f} [{epochElapsed//60:.0f}m {epochElapsed%60:.0f}s]")
+        print("-----" * 15)
+        avgTrainLoss.append(epochLoss)
+
+        plt.plot(avgTrainLoss, 'r', label='Train')
+        plt.xticks(np.arange(0,_NUM_EPOCHS_+10,10))
+        plt.title(f"Training loss using a dataset of {len(trainingDataset)} images")
+        plt.savefig(f"TrainLoss{len(trainingDataset)}Items.png")
+
+    #Make a sample prediction
+    idx = random.choice(range(0, len(trainingDataset)))
+    img_, trimap, gMasks = trainingDataset[0]
+    trimap = trimap.unsqueeze(0)
+    gMasks = gMasks.unsqueeze(0)
+    img = torch.cat([img_, trimap], 0).unsqueeze(0)
+
+    masks = model(img)
+    x  = transforms.ToPILImage()(img_[0])
+    x.show()
+    x = transforms.ToPILImage()(gMasks[0] * 255)
+    x.show()
+    x = transforms.ToPILImage()(trimap[0] * 255)
+    x.show()
+    x = transforms.ToPILImage()(masks[0] * 255)
+    x.show()
+    masks = refinementModel(img, masks)
+    x = transforms.ToPILImage()(masks[0] * 255)
+    x.show()
+
+    cImg = img_ * masks.squeeze(0)
+    x = transforms.ToPILImage()(cImg[0])
+    x.show()
 

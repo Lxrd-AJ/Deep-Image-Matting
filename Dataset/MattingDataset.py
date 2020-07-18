@@ -15,20 +15,24 @@ class MattingDataset(data.Dataset):
 
         self.foregroundImageNames = os.listdir(self.fgDir)
         self.backgroundImageNames = os.listdir(self.bgDir)
+        random.shuffle(self.backgroundImageNames) #TODO: Remove
+        self.backgroundImageNames = self.backgroundImageNames[:10] #TODO: Remove
         self.alphaImageNames = os.listdir(self.alphaDir)
+        random.shuffle(self.alphaImageNames) #TODO: Remove
+        self.alphaImageNames = self.alphaImageNames[:20] #TODO:Remove
 
         self.numForeground = len(self.foregroundImageNames)
         self.numBackground = len(self.backgroundImageNames)
         self.numAlpha = len(self.alphaImageNames)
 
-        assert self.numAlpha == self.numForeground
+        # assert self.numAlpha == self.numForeground #TODO: Remove
         
         self.imageBackgroundPair = itertools.product(self.alphaImageNames, self.backgroundImageNames)
         self.imageBackgroundPair = sorted(self.imageBackgroundPair, key=lambda x: x[0])
 
         self.allTransform = allTransform
 
-        assert len(self.imageBackgroundPair) == len(self)
+        # assert len(self.imageBackgroundPair) == len(self) #TODO: Remove
 
     def __len__(self):
         return self.numAlpha * self.numBackground
