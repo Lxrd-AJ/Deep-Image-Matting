@@ -2,8 +2,54 @@ import numpy as np
 import random
 import torch
 import torchvision.transforms.functional as TF
-from PIL import Image
+from PIL import Image, ImageFilter
 
+class RandomBlur(object):
+    def __init__(self, probability=0.5):
+        self.p = probability
+
+    def __call__(self, image):
+        if random.random() < self.p:
+            return image.filter(ImageFilter.GaussianBlur(radius=2))
+        return image
+
+class RandomRotation(object):
+    def __init__(self, probability=0.5, angle=45):
+        self.p = probability
+        self.angle = angle
+
+    def __call__(self, items):
+        image, trimap, mask = items
+        angle = random.randint(-self.angle, self.angle)
+        if random.random() < self.p:
+            image = TF.rotate(image, angle)
+            trimap = TF.rotate(trimap, angle)
+            mask = TF.rotate(mask, angle)
+        return image, trimap, mask
+
+class RandomVerticalFlip(object):
+    def __init__(self, probability=0.5):
+        self.p = probability
+
+    def __call__(self, items):
+        image, trimap, mask = items
+        if random.random() < self.p:
+            image = TF.vflip(image)
+            trimap = TF.vflip(trimap)
+            mask = TF.vflip(mask)
+        return image, trimap, mask
+
+class RandomHorizontalFlip(object):
+    def __init__(self, probability=0.5):
+        self.p = probability
+
+    def __call__(self, items):
+        image, trimap, mask = items
+        if random.random() < self.p:
+            image = TF.hflip(image)
+            trimap = TF.hflip(trimap)
+            mask = TF.hflip(mask)
+        return image, trimap, mask
 
 class ToTensor(object):
     def __call__(self, items):

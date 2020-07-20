@@ -8,7 +8,7 @@ import random
 from PIL import Image, ImageFilter, ImageChops
 
 class MattingDataset(data.Dataset):
-    def __init__(self, fgDir, bgDir, alphaDir, allTransform):
+    def __init__(self, fgDir, bgDir, alphaDir, allTransform, imageTransforms):
         self.fgDir = fgDir
         self.bgDir = bgDir
         self.alphaDir = alphaDir
@@ -16,10 +16,10 @@ class MattingDataset(data.Dataset):
         self.foregroundImageNames = os.listdir(self.fgDir)
         self.backgroundImageNames = os.listdir(self.bgDir)
         random.shuffle(self.backgroundImageNames) #TODO: Remove
-        self.backgroundImageNames = self.backgroundImageNames[:10] #TODO: Remove
+        self.backgroundImageNames = self.backgroundImageNames[:12] #TODO: Remove
         self.alphaImageNames = os.listdir(self.alphaDir)
         random.shuffle(self.alphaImageNames) #TODO: Remove
-        self.alphaImageNames = self.alphaImageNames[:20] #TODO:Remove
+        self.alphaImageNames = self.alphaImageNames[:22] #TODO:Remove
 
         self.numForeground = len(self.foregroundImageNames)
         self.numBackground = len(self.backgroundImageNames)
@@ -31,6 +31,7 @@ class MattingDataset(data.Dataset):
         self.imageBackgroundPair = sorted(self.imageBackgroundPair, key=lambda x: x[0])
 
         self.allTransform = allTransform
+        self.imageTransform = imageTransforms
 
         # assert len(self.imageBackgroundPair) == len(self) #TODO: Remove
 
@@ -50,6 +51,9 @@ class MattingDataset(data.Dataset):
         compositeImage = self.composite_image(foregroundImage, backgroundImage, alphaMask)
 
         assert compositeImage.size == trimap.size, f"composite size = {compositeImage.size} and trimap = {trimap.size} and foreground size = {foregroundImage.size}"
+
+        if self.imageTransform:
+            compositeImage = self.imageTransform(compositeImage)
         
         if self.allTransform:
             compositeImage, trimap, alphaMask = self.allTransform((compositeImage, trimap, alphaMask))

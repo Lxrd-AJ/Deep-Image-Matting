@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from Dataset.MattingDataset import MattingDataset
 from model import EncoderDecoderNet, RefinementNet
-from dataset_transforms import RandomTrimapCrop, Resize, ToTensor
+from dataset_transforms import RandomTrimapCrop, Resize, ToTensor, RandomHorizontalFlip, RandomRotation, RandomVerticalFlip, RandomBlur
 from loss import alpha_prediction_loss, compositional_loss
 
 
@@ -45,21 +45,30 @@ _TRAIN_BACKGROUND_DIR_ = "./Dataset/Background/COCO_Images"
 _TRAIN_ALPHA_DIR_ = "./Dataset/Training_set/CombinedAlpha"
 _NETWORK_INPUT_ = (320,320)
 _COMPUTE_DEVICE_ = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-_NUM_EPOCHS_ = 30 #200 #TODO: Remove
+_NUM_EPOCHS_ = 60 #200 #TODO: Remove
 _BATCH_SIZE_ = 8 #TODO: Increase this if using a GPU
 _NUM_WORKERS_ = multiprocessing.cpu_count()
 _LOSS_WEIGHT_ = 0.4 #0.5
 _GRADIENT_CLIP_ = 2.5
 
 tripleTransforms = transforms.Compose([
+    RandomRotation(probability=0.5, angle=180),
+    RandomVerticalFlip(probability=0.5),
+    RandomHorizontalFlip(probability=0.5),
     RandomTrimapCrop([(320, 320), (480, 480), (640, 640)], probability=0.7),
     Resize(_NETWORK_INPUT_),
     ToTensor()
 ])
 
+imageTransforms = transforms.Compose([
+    transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.25),
+    transforms.RandomGrayscale(p=0.3),
+    RandomBlur(probability=0.1)
+])
+
 trainingDataset = MattingDataset(
                         _TRAIN_FOREGROUND_DIR_, _TRAIN_BACKGROUND_DIR_, _TRAIN_ALPHA_DIR_, 
-                        allTransform=tripleTransforms
+                        allTransform=tripleTransforms, imageTransforms=imageTransforms
                     )
 trainDataloader = torch.utils.data.DataLoader(
                             trainingDataset, batch_size=_BATCH_SIZE_, shuffle=True, num_workers=_NUM_WORKERS_, collate_fn=batch_collate_fn)
@@ -142,9 +151,11 @@ if __name__ == "__main__":
         plt.title(f"Training loss using a dataset of {len(trainingDataset)} images")
         plt.savefig(f"TrainLoss{len(trainingDataset)}Items.png")
 
+    trainingElapsed = time.time() - trainStart
+    print(f"\nTotal training time is {trainingElapsed//60:.0f}m {trainingElapsed%60:.0f}s")
     #Make a sample prediction
     idx = random.choice(range(0, len(trainingDataset)))
-    img_, trimap, gMasks = trainingDataset[0]
+    img_, trimap, gMasks = trainingDataset[idx]
     trimap = trimap.unsqueeze(0)
     gMasks = gMasks.unsqueeze(0)
     img = torch.cat([img_, trimap], 0).unsqueeze(0)

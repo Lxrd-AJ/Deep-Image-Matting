@@ -38,7 +38,6 @@ class EncoderDecoderNet(nn.Module):
         """
         x = self.encoder(x)
         x = self.decoder(x)
-
         return x
 
 
@@ -51,9 +50,13 @@ class Encoder(nn.Module):
         """
         self.encoderBlocks = nn.Sequential(
             convBatchNormReLU(4, 64, 3),
+            convBatchNormReLU(64, 64, 1, pad=0, stride=1),
             convBatchNormReLU(64, 128, 3),
+            convBatchNormReLU(128, 128, 1, pad=0, stride=1),
             convBatchNormReLU(128, 256, 3),
-            convBatchNormReLU(256, 512, 3)
+            convBatchNormReLU(256, 256, 1, pad=0, stride=1),
+            convBatchNormReLU(256, 512, 3),
+            convBatchNormReLU(512, 512, 1, pad=0, stride=1),
         )
 
     def forward(self, x):
