@@ -58,7 +58,7 @@ class ToTensor(object):
         image = TF.to_tensor(image)
 
         trimap = np.array(trimap)
-        trimap = torch.from_numpy(trimap).float() / 255.0
+        trimap = torch.from_numpy(trimap).float() / 255
         
         mask = np.array(mask)
         mask = torch.from_numpy(mask).float() / 255
@@ -75,7 +75,10 @@ class Resize(object):
         return tuple(self.resize(x) for x in items)
 
     def resize(self, x):
-        return x.resize(self.size, Image.BICUBIC)
+        # Using the NEAREST filter leaves the trimap pixels unchanged
+        # A filter like BICUBIC would result in the trimap having values other than 0, 127 & 255
+        # as it can interpolate pixel values between 0 and 255
+        return x.resize(self.size, Image.NEAREST)
 
 
 

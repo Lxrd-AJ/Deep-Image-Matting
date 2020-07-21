@@ -30,6 +30,17 @@ def compositional_loss(predAlpha, trueAlpha, compositeImage):
             f.show()
 
     squareEps = torch.tensor(1e-6).pow(2).float()
+    trimaps = compositeImage[:,3,:] * 255
+    print(trimaps[(trimaps > 127)].mean())
+    print(trimaps[(trimaps < 127)].mean())
+    #TODO NB: there seems to be values other than 0, 127 & 255 in the trimap
+    unknownIndices = (trimaps == 127).nonzero()
+    unknownPixels = trimaps[trimaps == 127].nonzero()
+    print(unknownIndices.size())
+    print(trimaps[unknownIndices].size())
+    print(unknownPixels)
+    print(unknownPixels.size())
+    exit(0)
     compositeImage = compositeImage[:,0:3,:] #This removes the trimap added to the last dimension
     trueForeground = compositeImage * trueAlpha.unsqueeze(1)
     # show_alpha(trueForeground)
