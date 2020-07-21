@@ -7,15 +7,19 @@ def alpha_prediction_loss(predAlpha, trueAlpha):
     Both inputs are expected to be in the form BxSxS as this function operates
     on a batch of single channel images with values in the range of 0 - 1
     """
-    squareEps = torch.tensor(1e-6).pow(2).float()
+    eps = torch.tensor(1e-6).float()
+    squareEps = eps.pow(2)
     difference = predAlpha - trueAlpha
     
     squaredDifference = torch.pow(difference, 2) + squareEps
     
     rootDiff = torch.sqrt(squaredDifference)
-    totalLoss = rootDiff.sum(dim=[1,2]).mean()
+    sumRootDiff = rootDiff.sum(dim=[1,2])
+    sumTrueAlpha = trueAlpha.sum(dim=[1,2]) + eps
+    totalLoss = sumRootDiff / sumTrueAlpha
+    avgTotalLoss = totalLoss.mean()
 
-    return totalLoss
+    return avgTotalLoss
 
 
 def compositional_loss(predAlpha, trueAlpha, compositeImage):
