@@ -45,10 +45,10 @@ _TRAIN_BACKGROUND_DIR_ = "./Dataset/Background/COCO_Images"
 _TRAIN_ALPHA_DIR_ = "./Dataset/Training_set/CombinedAlpha"
 _NETWORK_INPUT_ = (320,320)
 _COMPUTE_DEVICE_ = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-_NUM_EPOCHS_ = 90 #200 #TODO: Remove
+_NUM_EPOCHS_ = 8 #200 #TODO: Remove 90
 _BATCH_SIZE_ = 8 #TODO: Increase this if using a GPU
 _NUM_WORKERS_ = multiprocessing.cpu_count()
-_LOSS_WEIGHT_ = 0.4 #0.5
+_LOSS_WEIGHT_ = 0.6
 _GRADIENT_CLIP_ = 2.5
 
 tripleTransforms = transforms.Compose([
@@ -115,7 +115,8 @@ if __name__ == "__main__":
                 modelAlphaLoss = alpha_prediction_loss(predictedMasks, groundTruthMasks)                
                 refinedAlphaLoss = alpha_prediction_loss(refinedMasks, groundTruthMasks)
                 lossAlpha = modelAlphaLoss + refinedAlphaLoss
-                lossComposition = compositional_loss(predictedMasks, groundTruthMasks, compositeImages)
+                # lossComposition = compositional_loss(predictedMasks, groundTruthMasks, compositeImages)
+                lossComposition = compositional_loss(refinedMasks, groundTruthMasks, compositeImages)
                 totalLoss = _LOSS_WEIGHT_ * lossAlpha + (1 - _LOSS_WEIGHT_) * lossComposition
                 epochLoss += totalLoss.item()
 
@@ -135,7 +136,7 @@ if __name__ == "__main__":
                 #NB: `lossAlpha` can be high at first e.g 107,001. This can cause high gradient updates and can
                 #   make training unstable. The gradients might need to be clipped to help training.
                 #   The model still trains nicely without clipping, this just gives you that smooth loss function
-                clip_gradients([model, refinementModel])
+                # clip_gradients([model, refinementModel])
 
                 optimiser.step()
 
@@ -153,27 +154,34 @@ if __name__ == "__main__":
 
     trainingElapsed = time.time() - trainStart
     print(f"\nTotal training time is {trainingElapsed//60:.0f}m {trainingElapsed%60:.0f}s")
+    
     #Make a sample prediction
-    idx = random.choice(range(0, len(trainingDataset)))
-    img_, trimap, gMasks = trainingDataset[idx]
-    trimap = trimap.unsqueeze(0)
-    gMasks = gMasks.unsqueeze(0)
-    img = torch.cat([img_, trimap], 0).unsqueeze(0)
+    trainingDataset.allTransform = transforms.Compose([Resize(_NETWORK_INPUT_),ToTensor()])
+    trainingDataset.imageTransform = None
+    with torch.no_grad():
+        idx = random.choice(range(0, len(trainingDataset)))
+        img_, trimap, gMasks = trainingDataset[idx]
+        trimap = trimap.unsqueeze(0)
+        gMasks = gMasks.unsqueeze(0)
+        img = torch.cat([img_, trimap], 0).unsqueeze(0)
 
-    masks = model(img)
-    x  = transforms.ToPILImage()(img_[0])
-    x.show()
-    x = transforms.ToPILImage()(gMasks[0] * 255)
-    x.show()
-    x = transforms.ToPILImage()(trimap[0] * 255)
-    x.show()
-    x = transforms.ToPILImage()(masks[0] * 255)
-    x.show()
-    masks = refinementModel(img, masks)
-    x = transforms.ToPILImage()(masks[0] * 255)
-    x.show()
+        x  = transforms.ToPILImage()(img_)
+        x.show()
+        
+        # x = transforms.ToPILImage()(gMasks[0] * 255)
+        # x.show()
 
-    cImg = img_ * masks.squeeze(0)
-    x = transforms.ToPILImage()(cImg[0])
-    x.show()
+        masks = model(img)
+        x = transforms.ToPILImage()(masks[0])
+        x.show()
+        cImg = img_ * masks.squeeze(0)
+        x = transforms.ToPILImage()(cImg)
+        x.show()
 
+
+        masks = refinementModel(img, masks)
+        x = transforms.ToPILImage()(masks[0])
+        x.show()
+        cImg = img_ * masks.squeeze(0)
+        x = transforms.ToPILImage()(cImg)
+        x.show()
