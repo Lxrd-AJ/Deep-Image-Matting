@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from Dataset.MattingDataset import MattingDataset
 from model import EncoderDecoderNet, RefinementNet
-from dataset_transforms import RandomTrimapCrop, Resize, ToTensor, RandomHorizontalFlip, RandomRotation, RandomVerticalFlip, RandomBlur
-from loss import alpha_prediction_loss, compositional_loss
+from dataset_transforms import RandomTrimapCrop, Resize, ToTensor, RandomHorizontalFlip, RandomRotation, RandomVerticalFlip, RandomBlur, RandomAffine
+from loss import alpha_prediction_loss, compositional_loss, sum_absolute_difference, mean_squared_error
 
 
 
@@ -45,7 +45,7 @@ _TRAIN_BACKGROUND_DIR_ = "./Dataset/Background/COCO_Images"
 _TRAIN_ALPHA_DIR_ = "./Dataset/Training_set/CombinedAlpha"
 _NETWORK_INPUT_ = (320,320)
 _COMPUTE_DEVICE_ = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-_NUM_EPOCHS_ = 8 #200 #TODO: Remove 90
+_NUM_EPOCHS_ = 30 #200 #TODO: Remove 90
 _BATCH_SIZE_ = 8 #TODO: Increase this if using a GPU
 _NUM_WORKERS_ = multiprocessing.cpu_count()
 _LOSS_WEIGHT_ = 0.6
@@ -68,7 +68,7 @@ imageTransforms = transforms.Compose([
 
 trainingDataset = MattingDataset(
                         _TRAIN_FOREGROUND_DIR_, _TRAIN_BACKGROUND_DIR_, _TRAIN_ALPHA_DIR_, 
-                        allTransform=tripleTransforms, imageTransforms=imageTransforms
+                        allTransform=tripleTransforms, imageTransforms=None
                     )
 trainDataloader = torch.utils.data.DataLoader(
                             trainingDataset, batch_size=_BATCH_SIZE_, shuffle=True, num_workers=_NUM_WORKERS_, collate_fn=batch_collate_fn)
@@ -115,10 +115,12 @@ if __name__ == "__main__":
                 modelAlphaLoss = alpha_prediction_loss(predictedMasks, groundTruthMasks)                
                 refinedAlphaLoss = alpha_prediction_loss(refinedMasks, groundTruthMasks)
                 lossAlpha = modelAlphaLoss + refinedAlphaLoss
-                # lossComposition = compositional_loss(predictedMasks, groundTruthMasks, compositeImages)
-                lossComposition = compositional_loss(refinedMasks, groundTruthMasks, compositeImages)
+                lossComposition = compositional_loss(predictedMasks, groundTruthMasks, compositeImages)
                 totalLoss = _LOSS_WEIGHT_ * lossAlpha + (1 - _LOSS_WEIGHT_) * lossComposition
                 epochLoss += totalLoss.item()
+                with torch.no_grad():
+                    sad = sum_absolute_difference(groundTruthMasks, refinedMasks)
+                    mse = mean_squared_error(groundTruthMasks, refinedMasks, compositeImages)
 
                 if idx % 100 == 0:
                     print(f"\tIteration {idx+1}/{len(trainingDataset)}")
@@ -128,6 +130,11 @@ if __name__ == "__main__":
                     print(f"\t Alpha loss = {lossAlpha}")
                     print(f"\t Composition loss = {lossComposition}")
                     print(f"\t Total Loss = {totalLoss}")
+                    print(f"\t {'***' * 5}")
+                    print(f"\t Metrics:")
+                    print(f"\t {'***' * 5}")
+                    print(f"\t Sum absolute difference: {sad}")
+                    print(f"\t Mean Squared Error: {mse}")
                     print()
 
                 optimiser.zero_grad()

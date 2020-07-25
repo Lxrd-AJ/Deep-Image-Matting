@@ -62,3 +62,21 @@ def compositional_loss(predAlpha, trueAlpha, compositeImage):
     totalLoss = rootDiff.sum(dim=[2,3]) / sumTrueForeground
     avgLoss = totalLoss.mean().mean() # average over the RGB channels and also across the batch
     return avgLoss
+
+
+def sum_absolute_difference(trueAlpha, predAlpha):
+    """
+    calculates the sum of absolute differences between images and predictions in batches
+    As the calculation is done over a batch, the mean is used to reduce the results
+    """
+    difference = predAlpha - trueAlpha
+    avgDiff = difference.sum(dim=[1,2]).mean()
+    return avgDiff
+
+def mean_squared_error(trueAlpha, predAlpha, compositeImage):
+    trimaps = compositeImage[:,3,:] * 255
+    blackMask = torch.zeros_like(trueAlpha)
+    unknownRegions = torch.where(trimaps == 127, trueAlpha, blackMask)
+    mse = torch.pow(predAlpha - trueAlpha, 2).sum() / unknownRegions.sum()
+
+    return mse

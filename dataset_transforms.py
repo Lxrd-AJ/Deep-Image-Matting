@@ -4,6 +4,20 @@ import torch
 import torchvision.transforms.functional as TF
 from PIL import Image, ImageFilter
 
+class RandomAffine(object):
+    def __init__(self, probability=0.5):
+        self.p = probability
+
+    def __call__(self, items):
+        image, trimap, mask = items
+        if random.random() < self.p:
+            angle = random.randint(-180, 180)
+            image = TF.affine(image, angle, translate=[0,0], scale=1.0, shear=0, resample=Image.BICUBIC)
+            # use nearest so the values of the trimap and alpha mask are not changed
+            trimap = TF.affine(trimap, angle, translate=[0,0], scale=1.0, shear=0, resample=Image.NEAREST)
+            mask = TF.affine(mask, angle, translate=[0,0], scale=1.0, shear=0, resample=Image.NEAREST)
+        return image, trimap, mask
+
 class RandomBlur(object):
     def __init__(self, probability=0.5):
         self.p = probability

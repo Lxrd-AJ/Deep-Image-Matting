@@ -16,10 +16,10 @@ class MattingDataset(data.Dataset):
         self.foregroundImageNames = os.listdir(self.fgDir)
         self.backgroundImageNames = os.listdir(self.bgDir)
         random.shuffle(self.backgroundImageNames) #TODO: Remove
-        self.backgroundImageNames = self.backgroundImageNames[:3] #TODO: Remove 13
+        self.backgroundImageNames = self.backgroundImageNames[:4] #TODO: Remove 13
         self.alphaImageNames = os.listdir(self.alphaDir)
         random.shuffle(self.alphaImageNames) #TODO: Remove
-        self.alphaImageNames = self.alphaImageNames[:3] #TODO:Remove 23
+        self.alphaImageNames = self.alphaImageNames[:4] #TODO:Remove 23
 
         self.numForeground = len(self.foregroundImageNames)
         self.numBackground = len(self.backgroundImageNames)
