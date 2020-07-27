@@ -38,6 +38,28 @@ def batch_collate_fn(batch):
 
     return (images, masks)
 
+def evaluate(model, refinementModel, testDataloader):
+    model.eval()
+    refinementModel.eval()
+    evalLoss = 0.0
+    with torch.no_grad():
+        for idx, data in enumerate(trainDataloader, 0):
+            compositeImages, groundTruthMasks = data
+            
+            predictedMasks = model(compositeImages)
+            refinedMasks = refinementModel(compositeImages,  predictedMasks)
+
+            predictedMasks = predictedMasks.squeeze(1)
+            refinedMasks = refinedMasks.squeeze(1)
+            
+            modelAlphaLoss = alpha_prediction_loss(predictedMasks, groundTruthMasks)                
+            refinedAlphaLoss = alpha_prediction_loss(refinedMasks, groundTruthMasks)
+            lossAlpha = modelAlphaLoss + refinedAlphaLoss
+            lossComposition = compositional_loss(predictedMasks, groundTruthMasks, compositeImages)
+            totalLoss = _LOSS_WEIGHT_ * lossAlpha + (1 - _LOSS_WEIGHT_) * lossComposition
+            evalLoss += totalLoss
+    return evalLoss / len(testDataloader)
+
 
 _TRAIN_FOREGROUND_DIR_ = "./Dataset/Training_set/CombinedForeground"
 _TRAIN_BACKGROUND_DIR_ = "./Dataset/Background/COCO_Images"
@@ -49,7 +71,7 @@ _TEST_TRIMAP_DIR_ = "./Dataset/Test_set/Adobe_licensed_images/trimaps"
 
 _NETWORK_INPUT_ = (320,320)
 _COMPUTE_DEVICE_ = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-_NUM_EPOCHS_ = 40 #200 #TODO: Remove 50
+_NUM_EPOCHS_ = 45 #200 #TODO: Remove 50
 _BATCH_SIZE_ = 8 #TODO: Increase this if using a GPU
 _NUM_WORKERS_ = multiprocessing.cpu_count()
 _LOSS_WEIGHT_ = 0.6
@@ -74,10 +96,14 @@ trainingDataset = MattingDataset(
                         _TRAIN_FOREGROUND_DIR_, _TRAIN_BACKGROUND_DIR_, _TRAIN_ALPHA_DIR_, 
                         allTransform=tripleTransforms, imageTransforms=None
                     )
-testDataset = MattingDataset(_TEST_FOREGROUND_DIR_, _TEST_BACKGROUND_DIR_, _TEST_ALPHA_DIR_, trimapDir=_TEST_TRIMAP_DIR_, allTransform=None, imageTransforms=None)
+testDataset = MattingDataset(_TEST_FOREGROUND_DIR_, _TEST_BACKGROUND_DIR_, _TEST_ALPHA_DIR_,
+                        trimapDir=_TEST_TRIMAP_DIR_, allTransform=transforms.Compose([Resize(_NETWORK_INPUT_),ToTensor()]), imageTransforms=None
+                    )
 
 trainDataloader = torch.utils.data.DataLoader(
                             trainingDataset, batch_size=_BATCH_SIZE_, shuffle=True, num_workers=_NUM_WORKERS_, collate_fn=batch_collate_fn)
+testDataloader = torch.utils.data.DataLoader(
+                            testDataset, batch_size=_BATCH_SIZE_, shuffle=True, num_workers=_NUM_WORKERS_, collate_fn=batch_collate_fn)
 
 model = EncoderDecoderNet()
 refinementModel = RefinementNet(inputChannels=5)
@@ -99,6 +125,7 @@ if __name__ == "__main__":
 
     trainStart = time.time()
     avgTrainLoss = []
+    avgTestLoss = []
 
     for epoch in range(_NUM_EPOCHS_):
         print(f"Epoch {epoch+1}/{_NUM_EPOCHS_}")
@@ -155,23 +182,31 @@ if __name__ == "__main__":
         epochLoss = epochLoss / len(trainDataloader)
         epochElapsed = time.time() - epochStart
         print(f"\t Average Train Epoch loss is {epochLoss:.2f} [{epochElapsed//60:.0f}m {epochElapsed%60:.0f}s]")
+        # Evaluate on the test set
+        epochTestLoss = evaluate(model, refinementModel, testDataloader)
+        print(f"\t Average Test Epoch loss is {epochTestLoss:.2f}")
         print("-----" * 15)
         avgTrainLoss.append(epochLoss)
+        avgTestLoss.append(epochTestLoss)
 
         plt.plot(avgTrainLoss, 'r', label='Train')
+        plt.plot(avgTestLoss, 'b', label="test")
         plt.xticks(np.arange(0,_NUM_EPOCHS_+10,10))
-        plt.title(f"Training loss using a dataset of {len(trainingDataset)} images")
-        plt.savefig(f"TrainLoss{len(trainingDataset)}Items.png")
+        plt.title(f"Training & Test loss using a dataset of {len(trainingDataset)} images")
+        plt.savefig(f"TrainTestLoss{len(trainingDataset)}Items.png")
+        
 
     trainingElapsed = time.time() - trainStart
     print(f"\nTotal training time is {trainingElapsed//60:.0f}m {trainingElapsed%60:.0f}s")
+
+    # save the models to disk
+    torch.save(model.state_dict(), "./model.pth")
+    torch.save(refinementModel.state_dict(), "./refinement_model.pth")
     
     #Make a sample prediction
-    trainingDataset.allTransform = transforms.Compose([Resize(_NETWORK_INPUT_),ToTensor()])
-    trainingDataset.imageTransform = None
     with torch.no_grad():
-        idx = random.choice(range(0, len(trainingDataset)))
-        img_, trimap, gMasks = trainingDataset[idx]
+        idx = random.choice(range(0, len(testDataset)))
+        img_, trimap, gMasks = testDataset[idx]
         trimap = trimap.unsqueeze(0)
         gMasks = gMasks.unsqueeze(0)
         img = torch.cat([img_, trimap], 0).unsqueeze(0)

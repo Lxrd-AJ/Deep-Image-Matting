@@ -17,10 +17,10 @@ class MattingDataset(data.Dataset):
         self.foregroundImageNames = os.listdir(self.fgDir)
         self.backgroundImageNames = os.listdir(self.bgDir)
         random.shuffle(self.backgroundImageNames) #TODO: Remove
-        self.backgroundImageNames = self.backgroundImageNames[:13] #TODO: Remove 13
+        self.backgroundImageNames = self.backgroundImageNames[:14] #TODO: Remove 13
         self.alphaImageNames = os.listdir(self.alphaDir)
         random.shuffle(self.alphaImageNames) #TODO: Remove
-        self.alphaImageNames = self.alphaImageNames[:13] #TODO:Remove 23
+        self.alphaImageNames = self.alphaImageNames[:14] #TODO:Remove 23
         # if self.trimapDir is not None:
         #     self.trimapImageNames = os.listdir(self.trimapDir)
 
@@ -53,6 +53,7 @@ class MattingDataset(data.Dataset):
             name, fileFormat = alphaMaskName.split(".")
             trimapName = f"{name}_0.{fileFormat}"
             trimap = self.open_image(os.path.join(self.trimapDir, trimapName))
+            trimap = trimap.convert("L")
         else:
             trimap = self.create_trimap(alphaMask)
 
