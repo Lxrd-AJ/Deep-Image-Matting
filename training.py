@@ -13,7 +13,6 @@ from loss import alpha_prediction_loss, compositional_loss, sum_absolute_differe
 
 
 
-
 def clip_gradients(models):
     for m in models:
         torch.nn.utils.clip_grad_norm_(m.parameters(), _GRADIENT_CLIP_)
@@ -43,13 +42,18 @@ def batch_collate_fn(batch):
 _TRAIN_FOREGROUND_DIR_ = "./Dataset/Training_set/CombinedForeground"
 _TRAIN_BACKGROUND_DIR_ = "./Dataset/Background/COCO_Images"
 _TRAIN_ALPHA_DIR_ = "./Dataset/Training_set/CombinedAlpha"
+_TEST_FOREGROUND_DIR_ = "./Dataset/Test_set/Adobe_licensed_images/fg"
+_TEST_BACKGROUND_DIR_ = "./Dataset/Background/COCO_Images"
+_TEST_ALPHA_DIR_ = "./Dataset/Test_set/Adobe_licensed_images/alpha"
+_TEST_TRIMAP_DIR_ = "./Dataset/Test_set/Adobe_licensed_images/trimaps"
+
 _NETWORK_INPUT_ = (320,320)
 _COMPUTE_DEVICE_ = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-_NUM_EPOCHS_ = 30 #200 #TODO: Remove 90
+_NUM_EPOCHS_ = 40 #200 #TODO: Remove 50
 _BATCH_SIZE_ = 8 #TODO: Increase this if using a GPU
 _NUM_WORKERS_ = multiprocessing.cpu_count()
 _LOSS_WEIGHT_ = 0.6
-_GRADIENT_CLIP_ = 2.5
+_GRADIENT_CLIP_ = 10
 
 tripleTransforms = transforms.Compose([
     RandomRotation(probability=0.5, angle=180),
@@ -70,6 +74,8 @@ trainingDataset = MattingDataset(
                         _TRAIN_FOREGROUND_DIR_, _TRAIN_BACKGROUND_DIR_, _TRAIN_ALPHA_DIR_, 
                         allTransform=tripleTransforms, imageTransforms=None
                     )
+testDataset = MattingDataset(_TEST_FOREGROUND_DIR_, _TEST_BACKGROUND_DIR_, _TEST_ALPHA_DIR_, trimapDir=_TEST_TRIMAP_DIR_, allTransform=None, imageTransforms=None)
+
 trainDataloader = torch.utils.data.DataLoader(
                             trainingDataset, batch_size=_BATCH_SIZE_, shuffle=True, num_workers=_NUM_WORKERS_, collate_fn=batch_collate_fn)
 
@@ -140,10 +146,8 @@ if __name__ == "__main__":
                 optimiser.zero_grad()
                 totalLoss.backward()
 
-                #NB: `lossAlpha` can be high at first e.g 107,001. This can cause high gradient updates and can
-                #   make training unstable. The gradients might need to be clipped to help training.
-                #   The model still trains nicely without clipping, this just gives you that smooth loss function
-                # clip_gradients([model, refinementModel])
+                # Gradient clipping doesn't really make that much of a difference
+                clip_gradients([model, refinementModel])
 
                 optimiser.step()
 

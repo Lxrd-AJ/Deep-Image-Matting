@@ -1,5 +1,5 @@
 Dataset/Background/COCO_Images
-Dataset/Test_set/Adobe-licensed images
+Dataset/Test_set
 Dataset/Training_set/Adobe-licensed images
 Dataset/Training_set/Other
 Dataset/Training_set/CombinedForeground

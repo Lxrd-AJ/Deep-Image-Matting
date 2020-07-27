@@ -8,18 +8,21 @@ import random
 from PIL import Image, ImageFilter, ImageChops
 
 class MattingDataset(data.Dataset):
-    def __init__(self, fgDir, bgDir, alphaDir, allTransform, imageTransforms):
+    def __init__(self, fgDir, bgDir, alphaDir, trimapDir=None, allTransform=None, imageTransforms=None):
         self.fgDir = fgDir
         self.bgDir = bgDir
         self.alphaDir = alphaDir
+        self.trimapDir = trimapDir
 
         self.foregroundImageNames = os.listdir(self.fgDir)
         self.backgroundImageNames = os.listdir(self.bgDir)
         random.shuffle(self.backgroundImageNames) #TODO: Remove
-        self.backgroundImageNames = self.backgroundImageNames[:4] #TODO: Remove 13
+        self.backgroundImageNames = self.backgroundImageNames[:13] #TODO: Remove 13
         self.alphaImageNames = os.listdir(self.alphaDir)
         random.shuffle(self.alphaImageNames) #TODO: Remove
-        self.alphaImageNames = self.alphaImageNames[:4] #TODO:Remove 23
+        self.alphaImageNames = self.alphaImageNames[:13] #TODO:Remove 23
+        # if self.trimapDir is not None:
+        #     self.trimapImageNames = os.listdir(self.trimapDir)
 
         self.numForeground = len(self.foregroundImageNames)
         self.numBackground = len(self.backgroundImageNames)
@@ -46,7 +49,12 @@ class MattingDataset(data.Dataset):
 
         backgroundImage = self.resize_background(backgroundImage, foregroundImage.size)
         
-        trimap = self.create_trimap(alphaMask)
+        if self.trimapDir is not None:
+            name, fileFormat = alphaMaskName.split(".")
+            trimapName = f"{name}_0.{fileFormat}"
+            trimap = self.open_image(os.path.join(self.trimapDir, trimapName))
+        else:
+            trimap = self.create_trimap(alphaMask)
 
         compositeImage = self.composite_image(foregroundImage, backgroundImage, alphaMask)
 
