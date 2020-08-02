@@ -7,6 +7,8 @@ Dataset/Training_set/CombinedAlpha
 Dataset/__pycache__
 model.pth
 refinement_model.pth
+demo/Julia.jpeg
+demo/Julia_FG.jpeg
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

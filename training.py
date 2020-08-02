@@ -138,6 +138,8 @@ if __name__ == "__main__":
         for idx, data in enumerate(trainDataloader, 0):
             with torch.set_grad_enabled(True):
                 compositeImages, groundTruthMasks = data
+                compositeImages = compositeImages.to(_COMPUTE_DEVICE_)
+                groundTruthMasks = groundTruthMasks.to(_COMPUTE_DEVICE_)
                 
                 predictedMasks = model(compositeImages)
                 refinedMasks = refinementModel(compositeImages,  predictedMasks)
