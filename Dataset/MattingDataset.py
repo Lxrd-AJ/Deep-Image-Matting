@@ -16,19 +16,19 @@ class MattingDataset(data.Dataset):
 
         self.foregroundImageNames = os.listdir(self.fgDir)
         self.backgroundImageNames = os.listdir(self.bgDir)
-        # random.shuffle(self.backgroundImageNames) #TODO: Remove
-        # self.backgroundImageNames = self.backgroundImageNames[:14] #TODO: Remove 13
+        random.shuffle(self.backgroundImageNames)
+        # self.backgroundImageNames = self.backgroundImageNames[:2] #TODO: Remove 13
         self.alphaImageNames = os.listdir(self.alphaDir)
-        # random.shuffle(self.alphaImageNames) #TODO: Remove
-        # self.alphaImageNames = self.alphaImageNames[:14] #TODO:Remove 23
-        # if self.trimapDir is not None:
-        #     self.trimapImageNames = os.listdir(self.trimapDir)
+        random.shuffle(self.alphaImageNames)
+        # self.alphaImageNames = self.alphaImageNames[:2] #TODO:Remove 23
+        if self.trimapDir is not None:
+            self.trimapImageNames = os.listdir(self.trimapDir)
 
         self.numForeground = len(self.foregroundImageNames)
         self.numBackground = len(self.backgroundImageNames)
         self.numAlpha = len(self.alphaImageNames)
 
-        # assert self.numAlpha == self.numForeground #TODO: Remove
+        assert self.numAlpha == self.numForeground
         
         self.imageBackgroundPair = itertools.product(self.alphaImageNames, self.backgroundImageNames)
         self.imageBackgroundPair = sorted(self.imageBackgroundPair, key=lambda x: x[0])
@@ -36,7 +36,7 @@ class MattingDataset(data.Dataset):
         self.allTransform = allTransform
         self.imageTransform = imageTransforms
 
-        # assert len(self.imageBackgroundPair) == len(self) #TODO: Remove
+        assert len(self.imageBackgroundPair) == len(self)
 
     def __len__(self):
         return self.numAlpha * self.numBackground

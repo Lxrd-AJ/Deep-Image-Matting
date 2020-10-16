@@ -71,8 +71,8 @@ _TEST_TRIMAP_DIR_ = "./Dataset/Test_set/Adobe_licensed_images/trimaps"
 
 _NETWORK_INPUT_ = (320,320)
 _COMPUTE_DEVICE_ = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-_NUM_EPOCHS_ = 45 #200 #TODO: Remove 50
-_BATCH_SIZE_ = 8 #TODO: Increase this if using a GPU
+_NUM_EPOCHS_ = 100
+_BATCH_SIZE_ = 16
 _NUM_WORKERS_ = multiprocessing.cpu_count()
 _LOSS_WEIGHT_ = 0.6
 _GRADIENT_CLIP_ = 10
@@ -94,7 +94,7 @@ imageTransforms = transforms.Compose([
 
 trainingDataset = MattingDataset(
                         _TRAIN_FOREGROUND_DIR_, _TRAIN_BACKGROUND_DIR_, _TRAIN_ALPHA_DIR_, 
-                        allTransform=tripleTransforms, imageTransforms=None
+                        allTransform=tripleTransforms, imageTransforms=imageTransforms
                     )
 testDataset = MattingDataset(_TEST_FOREGROUND_DIR_, _TEST_BACKGROUND_DIR_, _TEST_ALPHA_DIR_,
                         trimapDir=_TEST_TRIMAP_DIR_, allTransform=transforms.Compose([Resize(_NETWORK_INPUT_),ToTensor()]), imageTransforms=None
@@ -126,6 +126,7 @@ if __name__ == "__main__":
     trainStart = time.time()
     avgTrainLoss = []
     avgTestLoss = []
+    lowestEpochLoss = float("inf")
 
     for epoch in range(_NUM_EPOCHS_):
         print(f"Epoch {epoch+1}/{_NUM_EPOCHS_}")
@@ -196,14 +197,19 @@ if __name__ == "__main__":
         plt.xticks(np.arange(0,_NUM_EPOCHS_+10,10))
         plt.title(f"Training & Test loss using a dataset of {len(trainingDataset)} images")
         plt.savefig(f"TrainTestLoss{len(trainingDataset)}Items.png")
+
+        # Save the model with the lowest loss to disk
+        if epochLoss <= lowestEpochLoss:
+            print(f"\tSaving models to disk based on new lowest loss {epochLoss:.2f}")
+            lowestEpochLoss = epochLoss
+            # save the models to disk
+            torch.save(model.state_dict(), "./model.pth")
+            torch.save(refinementModel.state_dict(), "./refinement_model.pth")
         
 
     trainingElapsed = time.time() - trainStart
     print(f"\nTotal training time is {trainingElapsed//60:.0f}m {trainingElapsed%60:.0f}s")
 
-    # save the models to disk
-    torch.save(model.state_dict(), "./model.pth")
-    torch.save(refinementModel.state_dict(), "./refinement_model.pth")
     
     #Make a sample prediction
     with torch.no_grad():

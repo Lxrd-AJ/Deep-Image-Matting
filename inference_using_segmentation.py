@@ -9,6 +9,7 @@ from PIL import Image, ImageFilter, ImageChops
 from model import EncoderDecoderNet, RefinementNet
 
 def deeplabV3():
+    # https://pytorch.org/hub/pytorch_vision_deeplabv3_resnet101/
     return models.segmentation.deeplabv3_resnet101(pretrained=True, progress=True)
     
 def test_image():
@@ -94,6 +95,8 @@ if __name__ == "__main__":
 
         print(f"Computing alpha mask")
         predMask = model(X)
+        # As I'm using an arbitrary sized input, it is possible the decoder output size is not equal to the
+        # encoder input size. Therefore we use `interpolate` to resize it.
         predMask = F.interpolate(predMask, imgSize)
         print(predMask.size())
         print(f"Refining alpha mask")
